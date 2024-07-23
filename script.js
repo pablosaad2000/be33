@@ -1,230 +1,93 @@
-// افتح قاعدة البيانات أو أنشئها إذا لم تكن موجودة
-let db;
-let request = indexedDB.open('ordersDB', 1);
+document.addEventListener('DOMContentLoaded', (event) => {
+    let db;
+    const request = indexedDB.open("ordersDatabase", 1);
 
-request.onerror = function(event) {
-    console.error('حدث خطأ أثناء فتح قاعدة البيانات:', event.target.errorCode);
-};
-
-request.onupgradeneeded = function(event) {
-    db = event.target.result;
-    let objectStore = db.createObjectStore('orders', { keyPath: 'orderNumber' });
-    objectStore.createIndex('customerName', 'customerName', { unique: false });
-    objectStore.createIndex('customerPhone', 'customerPhone', { unique: false });
-};
-
-request.onsuccess = function(event) {
-    db = event.target.result;
-    renderOrders();
-};
-
-document.getElementById('orderForm').addEventListener('submit', function(event) {
-    event.preventDefault();
-
-    let newOrder = {
-        customerName: document.getElementById('customerName').value,
-        orderNumber: parseInt(document.getElementById('orderNumber').value),
-        orderPrice: parseFloat(document.getElementById('orderPrice').value),
-        discountedPrice: parseFloat(document.getElementById('discountedPrice').value),
-        orderType: document.getElementById('orderType').value,
-        shippingCompany: document.getElementById('shippingCompany').value,
-        orderAddress: document.getElementById('orderAddress').value,
-        customerPhone: document.getElementById('customerPhone').value,
-        orderDate: document.getElementById('orderDate').value
+    request.onupgradeneeded = function(event) {
+        db = event.target.result;
+        const objectStore = db.createObjectStore("orders", { keyPath: "orderNumber" });
     };
-
-    let transaction = db.transaction(['orders'], 'readwrite');
-    let objectStore = transaction.objectStore('orders');
-    let request = objectStore.add(newOrder);
 
     request.onsuccess = function(event) {
-        console.log('تم إضافة الطلب بنجاح!');
-        document.getElementById('orderForm').reset();
-        renderOrders();
+        db = event.target.result;
+        loadOrders();
     };
 
-    request.onerror = function(event) {
-        console.error('حدث خطأ أثناء إضافة الطلب:', event.target.errorCode);
-    };
-});
-
-function renderOrders() {
-    let transaction = db.transaction(['orders'], 'readonly');
-    let objectStore = transaction.objectStore('orders');
-    let request = objectStore.getAll();
-
-    request.onsuccess = function(event) {
-        let orders = event.target.result;
-        let orderList = document.getElementById('orderList');
-        orderList.innerHTML = '';
-
-        orders.forEach(function(order) {
-            let listItem = document.createElement('li');
-
-            listItem.innerHTML = `
-                <div><strong>اسم العميل:</strong> ${order.customerName}</div>
-                <div><strong>رقم الطلب:</strong> ${order.orderNumber}</div>
-                <div><strong>سعر الطلب:</strong> ${order.orderPrice}</div>
-                <div><strong>سعر بعد الخصم:</strong> ${order.discountedPrice}</div>
-                <div><strong>نوع الطلب:</strong> ${order.orderType}</div>
-                <div><strong>شركة الشحن:</strong> ${order.shippingCompany}</div>
-                <div><strong>عنوان الطلب:</strong> ${order.orderAddress}</div>
-                <div><strong>هاتف العميل:</strong> ${order.customerPhone}</div>
-                <div><strong>تاريخ الطلب:</strong> ${order.orderDate}</div>
-            `;
-
-            let editButton = document.createElement('button');
-            editButton.textContent = 'تعديل';
-            editButton.addEventListener('click', function() {
-                openEditModal(order);
-            });
-            listItem.appendChild(editButton);
-
-            let deleteButton = document.createElement('button');
-            deleteButton.textContent = 'حذف';
-            deleteButton.addEventListener('click', function() {
-                deleteOrder(order.orderNumber);
-            });
-            listItem.appendChild(deleteButton);
-
-            orderList.appendChild(listItem);
-        });
-    };
-
-    request.onerror = function(event) {
-        console.error('حدث خطأ أثناء جلب الطلبات:', event.target.errorCode);
-    };
-}
-
-function deleteOrder(orderNumber) {
-    let transaction = db.transaction(['orders'], 'readwrite');
-    let objectStore = transaction.objectStore('orders');
-    let request = objectStore.delete(orderNumber);
-
-    request.onsuccess = function(event) {
-        console.log('تم حذف الطلب بنجاح!');
-        renderOrders();
-    };
-
-    request.onerror = function(event) {
-        console.error('حدث خطأ أثناء حذف الطلب:', event.target.errorCode);
-    };
-}
-
-document.getElementById('searchInput').addEventListener('input', function(event) {
-    let query = event.target.value.toLowerCase();
-    let transaction = db.transaction(['orders'], 'readonly');
-    let objectStore = transaction.objectStore('orders');
-    let request = objectStore.getAll();
-
-    request.onsuccess = function(event) {
-        let orders = event.target.result;
-        let searchResults = document.getElementById('searchResults');
-        searchResults.innerHTML = '';
-
-        orders.forEach(function(order) {
-            if (
-                order.customerName.toLowerCase().includes(query) ||
-                order.orderNumber.toString().includes(query) ||
-                order.customerPhone.includes(query)
-            ) {
-                let listItem = document.createElement('li');
-                listItem.innerHTML = `اسم العميل: ${order.customerName}, رقم الطلب: ${order.orderNumber}, هاتف العميل: ${order.customerPhone}`;
-                listItem.addEventListener('click', function() {
-                    openViewModal(order);
-                });
-                searchResults.appendChild(listItem);
-            }
-        });
-    };
-
-    request.onerror = function(event) {
-        console.error('حدث خطأ أثناء البحث عن الطلبات:', event.target.errorCode);
-    };
-});
-
-function openViewModal(order) {
-    let modal = document.getElementById('viewModal');
-    let orderDetails = document.getElementById('orderDetails');
-    modal.style.display = 'block';
-
-    orderDetails.innerHTML = `
-        <div><strong>اسم العميل:</strong> ${order.customerName}</div>
-        <div><strong>رقم الطلب:</strong> ${order.orderNumber}</div>
-        <div><strong>سعر الطلب:</strong> ${order.orderPrice}</div>
-        <div><strong>سعر بعد الخصم:</strong> ${order.discountedPrice}</div>
-        <div><strong>نوع الطلب:</strong> ${order.orderType}</div>
-        <div><strong>شركة الشحن:</strong> ${order.shippingCompany}</div>
-        <div><strong>عنوان الطلب:</strong> ${order.orderAddress}</div>
-        <div><strong>هاتف العميل:</strong> ${order.customerPhone}</div>
-        <div><strong>تاريخ الطلب:</strong> ${order.orderDate}</div>
-    `;
-
-    document.getElementsByClassName('close')[1].onclick = function() {
-        modal.style.display = 'none';
-    };
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    };
-}
-
-function openEditModal(order) {
-    let modal = document.getElementById('editModal');
-    let form = document.getElementById('editForm');
-    modal.style.display = 'block';
-
-    form.editCustomerName.value = order.customerName;
-    form.editOrderNumber.value = order.orderNumber;
-    form.editOrderPrice.value = order.orderPrice;
-    form.editDiscountedPrice.value = order.discountedPrice;
-    form.editOrderType.value = order.orderType;
-    form.editShippingCompany.value = order.shippingCompany;
-    form.editOrderAddress.value = order.orderAddress;
-    form.editCustomerPhone.value = order.customerPhone;
-    form.editOrderDate.value = order.orderDate;
-
-    document.getElementById('saveChangesBtn').addEventListener('click', function() {
-        let updatedOrder = {
-            customerName: form.editCustomerName.value,
-            orderNumber: parseInt(form.editOrderNumber.value),
-            orderPrice: parseFloat(form.editOrderPrice.value),
-            discountedPrice: parseFloat(form.editDiscountedPrice.value),
-            orderType: form.editOrderType.value,
-            shippingCompany: form.editShippingCompany.value,
-            orderAddress: form.editOrderAddress.value,
-            customerPhone: form.editCustomerPhone.value,
-            orderDate: form.editOrderDate.value
+    function saveOrder(order) {
+        const transaction = db.transaction(["orders"], "readwrite");
+        const objectStore = transaction.objectStore("orders");
+        const request = objectStore.add(order);
+        request.onsuccess = function(event) {
+            console.log("Order has been added to your database.");
         };
+        transaction.oncomplete = function() {
+            console.log("All done!");
+            loadOrders();
+        };
+        transaction.onerror = function(event) {
+            console.error("Transaction not opened due to error: " + transaction.error);
+        };
+    }
 
-        updateOrder(updatedOrder);
-        modal.style.display = 'none';
+    function loadOrders() {
+        const transaction = db.transaction(["orders"], "readonly");
+        const objectStore = transaction.objectStore("orders");
+        const request = objectStore.getAll();
+
+        request.onsuccess = function(event) {
+            const orders = event.target.result;
+            const orderList = document.getElementById('orderList');
+            orderList.innerHTML = '';
+            orders.forEach(order => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div>اسم العميل: ${order.customerName}</div>
+                    <div>رقم الطلب: ${order.orderNumber}</div>
+                    <div>رصيد العميل: ${order.orderPrice}</div>
+                    <div>نوع الطلب: ${order.orderType}</div>
+                    <div>شركة الشحن: ${order.shippingCompany}</div>
+                    <div>المحافظه: ${order.orderAddress}</div>
+                    <div>رقم هاتف العميل: ${order.customerPhone}</div>
+                    <div>تاريخ الطلب: ${order.orderDate}</div>
+                    <button onclick="editOrder(${order.orderNumber})">تعديل</button>
+                    <button onclick="deleteOrder(${order.orderNumber})">حذف</button>
+                `;
+                orderList.appendChild(li);
+            });
+        };
+    }
+
+    function deleteOrder(orderNumber) {
+        const transaction = db.transaction(["orders"], "readwrite");
+        const objectStore = transaction.objectStore("orders");
+        const request = objectStore.delete(orderNumber);
+
+        request.onsuccess = function(event) {
+            console.log("Order has been deleted from your database.");
+            loadOrders();
+        };
+        transaction.onerror = function(event) {
+            console.error("Transaction not opened due to error: " + transaction.error);
+        };
+    }
+
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const order = {
+            customerName: document.getElementById('customerName').value,
+            orderNumber: document.getElementById('orderNumber').value,
+            orderPrice: document.getElementById('orderPrice').value,
+            orderType: document.getElementById('orderType').value,
+            shippingCompany: document.getElementById('shippingCompany').value,
+            orderAddress: document.getElementById('orderAddress').value,
+            customerPhone: document.getElementById('customerPhone').value,
+            orderDate: document.getElementById('orderDate').value
+        };
+        saveOrder(order);
     });
 
-    document.getElementsByClassName('close')[0].onclick = function() {
-        modal.style.display = 'none';
+    window.deleteOrder = deleteOrder;
+    window.editOrder = function(orderNumber) {
+        // هنا ستحتاج إلى إضافة منطق تحرير الطلب
+        alert(`قم بتحرير الطلب رقم ${orderNumber}`);
     };
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    };
-}
-
-function updateOrder(order) {
-    let transaction = db.transaction(['orders'], 'readwrite');
-    let objectStore = transaction.objectStore('orders');
-    let request = objectStore.put(order);
-
-    request.onsuccess = function(event) {
-        console.log('تم تحديث الطلب بنجاح!');
-        renderOrders();
-    };
-
-    request.onerror = function(event) {
-        console.error('حدث خطأ أثناء تحديث الطلب:', event.target.errorCode);
-    };
-}
+});
